@@ -1,6 +1,7 @@
 x64/
 Debug/
 .vs/
+vendor/ImGui
 *.ipch
 *.db
 FRA.vcxproj.user

@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Backend\test.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="vendor\ImGui\backends\imgui_impl_dx9.cpp" />
     <ClCompile Include="vendor\ImGui\backends\imgui_impl_win32.cpp" />
@@ -29,6 +30,7 @@
     <ClCompile Include="vendor\ImGui\imgui_widgets.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Backend\test.h" />
     <ClInclude Include="vendor\ImGui\backends\imgui_impl_dx9.h" />
     <ClInclude Include="vendor\ImGui\backends\imgui_impl_win32.h" />
     <ClInclude Include="vendor\ImGui\imgui.h" />

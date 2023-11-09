@@ -4,3 +4,9 @@ Debug/
 *.ipch
 *.db
 FRA.vcxproj.user
+packages.config
+packages/vcpkg.D.vcpkg.1.0.0/build/native/vcpkg.D.vcpkg.props
+packages/vcpkg.D.vcpkg.1.0.0/build/native/vcpkg.D.vcpkg.targets
+packages/vcpkg.D.vcpkg.1.0.0/vcpkg.D.vcpkg.1.0.0.nupkg
+nativefiledialog/nfd_gtk.c
+nativefiledialog/nfd_zenity.c

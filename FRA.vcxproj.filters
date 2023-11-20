@@ -60,6 +60,15 @@
     <ClCompile Include="nativefiledialog\nfd_win.cpp">
       <Filter>Helper</Filter>
     </ClCompile>
+    <ClCompile Include="Backend\DataStructures.cpp">
+      <Filter>Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="Frontend\HomePage.cpp">
+      <Filter>Frontend</Filter>
+    </ClCompile>
+    <ClCompile Include="Backend\Tool.cpp">
+      <Filter>Backend</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="vendor\ImGui\imgui.h">
@@ -91,6 +100,18 @@
     </ClInclude>
     <ClInclude Include="nativefiledialog\simple_exec.h">
       <Filter>Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="Backend\DataStructures.h">
+      <Filter>Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="Backend\ntfs.h">
+      <Filter>Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="Frontend\HomePage.h">
+      <Filter>Frontend</Filter>
+    </ClInclude>
+    <ClInclude Include="Backend\Tool.h">
+      <Filter>Backend</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

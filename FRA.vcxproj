@@ -19,6 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Backend\DataStructures.cpp" />
+    <ClCompile Include="Backend\Tool.cpp" />
+    <ClCompile Include="Frontend\HomePage.cpp" />
     <ClCompile Include="Helpers\Helper.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="nativefiledialog\nfd_common.c" />
@@ -32,6 +35,10 @@
     <ClCompile Include="vendor\ImGui\imgui_widgets.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Backend\DataStructures.h" />
+    <ClInclude Include="Backend\ntfs.h" />
+    <ClInclude Include="Backend\Tool.h" />
+    <ClInclude Include="Frontend\HomePage.h" />
     <ClInclude Include="Helpers\Helper.h" />
     <ClInclude Include="nativefiledialog\common.h" />
     <ClInclude Include="nativefiledialog\include\nfd.h" />

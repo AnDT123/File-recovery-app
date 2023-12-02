@@ -710,6 +710,10 @@ typedef struct _FILE_RECORD_SEGMENT_HEADER {
     //  upwards compatibility.
     //
 
+    USHORT Allign;
+
+    ULONG RecordId;
+
     UPDATE_SEQUENCE_ARRAY UpdateArrayForCreateOnly;                 //  offset = 0x02A
 
 } FILE_RECORD_SEGMENT_HEADER;

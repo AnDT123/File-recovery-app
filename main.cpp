@@ -13,9 +13,12 @@
 #include <tchar.h>
 #include <string>
 #include <vector>
+#include <memory>
 #include "Backend/Tool.h"
 #include "Frontend/HomePage.h"
-
+#include <map>
+#include <fcntl.h>
+#include <io.h>
 // Data
 static LPDIRECT3D9              g_pD3D = nullptr;
 static LPDIRECT3DDEVICE9        g_pd3dDevice = nullptr;
@@ -31,6 +34,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 // Main code
 int main(int, char**)
 {
+    
     // Create application window
     //ImGui_ImplWin32_EnableDpiAwareness();
     WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"ImGui Example", nullptr };
@@ -101,7 +105,7 @@ int main(int, char**)
     // Main loop
     //--------------------------------------------
     HANDLE fileHandle = CreateFileA(
-        "\\\\.\\C:",
+        "\\\\.\\E:",
         GENERIC_READ,
         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
         NULL,
@@ -113,13 +117,46 @@ int main(int, char**)
     DWORD bytesRead;     
     OVERLAPPED ol{};
     // Set the offset from the start of the file
-    ol.Offset = 1024;
-    ReadFile(fileHandle, buffer, sizeof(buffer), &bytesRead, &ol);
+    ol.Offset = 0xC0000 *4096;
     ReadFile(fileHandle, buffer, sizeof(buffer), &bytesRead, &ol);
     std::vector<std::vector<unsigned char>> filedata = Tool::HEXA(buffer, bytesRead);
+    bool flag;
+    MFT_RECORD mft = Tool::MFTRecordParser(buffer, 0, &flag);
+    //vector<FILE_NAME_DATA> vec = mft.GetFilenameVec();
+    //FILE_NAME_DATA fnd = vec.at(0);
+    vector<wstring> filename;
+    vector<FRAGMENT> datarun= mft.GetDataRun();
+    vector<MFT_RECORD> mftRecords;
+    for (FRAGMENT f : datarun) {
+        const int fragmentSize = f.NumberOfClusters;
+        unsigned char fragment[1024];
+        DWORD bytesRead;
+        OVERLAPPED o{};
+        // Set the offset from the start of the file
+        for (int i = 0; i < f.NumberOfClusters * 4; i++) {
+            bool success = true;
+            o.Offset = f.FragmentOffset * 4096 + i * 1024;
+            ReadFile(fileHandle, fragment, sizeof(fragment), &bytesRead, &o);
+            MFT_RECORD record = Tool::MFTRecordParser(fragment, o.Offset, &success);
+            if (success)
+                mftRecords.push_back(record);
+        }
+    }
+    for (MFT_RECORD r : mftRecords) {
+        vector<FILE_NAME_DATA> filenameDataVec = r.GetFilenameVec();
+        if (filenameDataVec.size() > 0) {
+            _setmode(_fileno(stdout), _O_U16TEXT);
+            //std::wstring wideString = L"Hello, 你好, 🌍";
+            FILE_NAME_DATA fnd = filenameDataVec.at(0);
+            wchar_t* filename = (wchar_t*) malloc (fnd.FileNameLength * sizeof(wchar_t) + 2);
+            memcpy(filename, fnd.FileName, fnd.FileNameLength * sizeof(wchar_t));
+            filename[fnd.FileNameLength] = 0x00;
+            std::wcout << filename << endl;
+        }
+        int b = 0;
 
-
-
+    }
+    std::map<ULONG, vector<ULONG>> recordExtensionMap;
 
     // Main loop
     bool done = false;

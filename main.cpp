@@ -106,7 +106,7 @@ int main(int, char**)
     // Main loop
     //--------------------------------------------
     HANDLE fileHandle = CreateFileA(
-        "\\\\.\\C:",
+        "\\\\.\\E:",
         GENERIC_READ,
         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
         NULL,
@@ -122,12 +122,12 @@ int main(int, char**)
     ReadFile(fileHandle, buffer, sizeof(buffer), &bytesRead, &ol);
     std::vector<std::vector<unsigned char>> filedata = Tool::HEXA(buffer, bytesRead);
     bool flag;
-    MFT_RECORD* pMft = Tool::MFTRecordParser(buffer, 0, &flag);
+    MFT_RECORD mft = Tool::MFTRecordParser(buffer, 0, &flag);
     //vector<FILE_NAME_DATA> vec = mft.GetFilenameVec();
     //FILE_NAME_DATA fnd = vec.at(0);
     vector<wstring> filename;
-    vector<FRAGMENT> datarun= pMft->GetDataRun();
-    vector<MFT_RECORD*> mftPRecords;
+    vector<FRAGMENT> datarun= mft.GetDataRun();
+    vector<MFT_RECORD> mftRecords;
     for (FRAGMENT f : datarun) {
         const int fragmentSize = f.NumberOfClusters;
         unsigned char fragment[1024];
@@ -137,10 +137,11 @@ int main(int, char**)
         for (int i = 0; i < f.NumberOfClusters * 4; i++) {
             bool success = true;
             o.Offset = f.FragmentOffset * 4096 + i * 1024;
+            std::cout << std:: hex << o.Offset << std::endl;
             ReadFile(fileHandle, fragment, sizeof(fragment), &bytesRead, &o);
-            MFT_RECORD* pRecord = Tool::MFTRecordParser(fragment, o.Offset, &success);
+            MFT_RECORD record = Tool::MFTRecordParser(fragment, o.Offset, &success);
             if (success)
-                mftPRecords.push_back(pRecord);
+                mftRecords.push_back(record);
         }
     }
     //for (MFT_RECORD r : mftRecords) {
@@ -157,11 +158,10 @@ int main(int, char**)
     //        std::wcout << filename << endl;
     //    }
     //    int b = 0;
-
     //}
-    //auto tree = new FileSystemTree(mftRecords);
+    auto tree = new FileSystemTree(mftRecords);
     std::map<ULONG, vector<ULONG>> recordExtensionMap;
-     std::cout << mftPRecords.size() << endl;
+     std::cout << mftRecords.size() << endl;
     // Main loop
     bool done = false;
     while (!done)

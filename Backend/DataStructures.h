@@ -130,14 +130,13 @@ namespace DataStructures {
         DIR_NODE* root;
         vector<MFT_RECORD> recordVec;
 
-        MFT_RECORD* findRecordById(ULONG id) {
+        MFT_RECORD findRecordById(ULONG id) {
             for (auto r : recordVec) {
                 if (r.GetRecordId() == id)
                 {
-                    return &r;
+                    return r;
                 }
             }
-            return nullptr;
         }
         NODE* GetIdWithNode(DIR_NODE* node, ULONG id) {
             if (id == 0x00000005)
@@ -146,7 +145,7 @@ namespace DataStructures {
                 return node;
             NODE* child = node->FirstChild;
             while (child != nullptr) {
-                if (findRecordById(child->RecordId)->IsDir()) {
+                if (findRecordById(child->RecordId).IsDir()) {
                     auto result = GetIdWithNode((DIR_NODE*)child, id);
                     if (result != nullptr)
                         return result;
@@ -171,7 +170,7 @@ namespace DataStructures {
                 Next = Next->NextSibling;
             }
             Next->NextSibling = child;
-            NodeIds.push_back(child->RecordId);
+            //NodeIds.push_back(child->RecordId);
         }
     public:
         FileSystemTree(vector<MFT_RECORD> vec) {
@@ -204,8 +203,11 @@ namespace DataStructures {
         }
         void AddDirNodeToTree(FILE_NAME_DATA fnd, ULONG recordId) {
             //std::cout << "AddDirNodeToTree" << std::endl;
+            if (recordId == 41)
+                int a = 0;
             if (is_in_tree(recordId))
                 return;
+            NodeIds.push_back(recordId);
             DIR_NODE* parentNode = (DIR_NODE*)malloc(sizeof(DIR_NODE));
             DIR_NODE* childNode = nullptr;
             wchar_t* filename = (wchar_t*)malloc(fnd.FileNameLength * sizeof(wchar_t) + 2);
@@ -216,19 +218,19 @@ namespace DataStructures {
             parentNode->FirstChild = nullptr;
             parentNode->NextSibling = nullptr;
 
-            while (!is_in_tree(recordId)) {
+            while (true) {
                 recordId = fnd.ParentDirectoryReference.SegmentNumberLowPart;
-                if (recordId == root->RecordId) {
+                if (is_in_tree(recordId)) {
                     break;
                 }
-                MFT_RECORD* currRecord = findRecordById(recordId);
+                MFT_RECORD currRecord = findRecordById(recordId);
                 //-------------File Sequence Check here---------------
                 //---------------currRecord and fnd-------------------
-                vector<FILE_NAME_DATA> filenameVec = currRecord->GetFilenameVec();
+                vector<FILE_NAME_DATA> filenameVec = currRecord.GetFilenameVec();
                 if (filenameVec.size() <= 0) {
                     return;
                 }
-                fnd = currRecord->GetFilenameVec().at(0);
+                fnd = currRecord.GetFilenameVec().at(0);
 
                 DIR_NODE* node = (DIR_NODE*) malloc(sizeof(DIR_NODE));
                 wchar_t* filename = (wchar_t*)malloc(fnd.FileNameLength * sizeof(wchar_t) + 2);
@@ -236,6 +238,8 @@ namespace DataStructures {
                 filename[fnd.FileNameLength] = 0x00;
                 node->Name = filename;
                 node->RecordId = recordId;
+                node->NextSibling = nullptr;
+                NodeIds.push_back(recordId);
                 
                 childNode = parentNode;
                 parentNode = node;

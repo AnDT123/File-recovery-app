@@ -218,110 +218,51 @@ namespace Tool {
         return mra;
 
     }
-    MFT_RECORD* MFTRecordParser(unsigned char buffer[], DWORD offset, bool* success) {
-        MFT_RECORD* record = (MFT_RECORD * )malloc(sizeof(MFT_RECORD));
-        record->offset = offset;
-        record->numOfAtt = 0;
+    MFT_RECORD MFTRecordParser(unsigned char buffer[], DWORD offset, bool* success) {
+        MFT_RECORD record;
+        record.offset = offset;
+        record.numOfAtt = 0;
         if (buffer[0] != 0x46 || buffer[1] != 0x49 || buffer[2] != 0x4C || buffer[3] != 0x45 || (buffer[4] == '_' && buffer[5] == 'D')) {
             *success = false;
             return record;
         }
         try {
-            memcpy(&(record->header.MultiSectorHeader.Signature), buffer, 4);
-            memcpy(&(record->header.MultiSectorHeader.UpdateSequenceArrayOffset), buffer + 0x04, 2);
-            memcpy(&(record->header.MultiSectorHeader.UpdateSequenceArraySize), buffer + 0x06, 2);
-            memcpy(&(record->header.Lsn), buffer + 0x08, 8);
-            memcpy(&(record->header.SequenceNumber), buffer + 0x10, 2);
-            memcpy(&(record->header.ReferenceCount), buffer + 0x12, 2);
-            memcpy(&(record->header.FirstAttributeOffset), buffer + 0x14, 2);
-            memcpy(&(record->header.Flags), buffer + 0x16, 2);
-            memcpy(&(record->header.FirstFreeByte), buffer + 0x18, 4);
-            memcpy(&(record->header.BytesAvailable), buffer + 0x1C, 4);
-            memcpy(&(record->header.BaseFileRecordSegment), buffer + 0x20, 8);
-            memcpy(&(record->header.NextAttributeInstance), buffer + 0x28, 2);
-            memcpy(&(record->header.Allign), buffer + 0x2A, 2);
-            memcpy(&(record->header.RecordId), buffer + 0x2C, 4);
+            memcpy(&(record.header.MultiSectorHeader.Signature), buffer, 4);
+            memcpy(&(record.header.MultiSectorHeader.UpdateSequenceArrayOffset), buffer + 0x04, 2);
+            memcpy(&(record.header.MultiSectorHeader.UpdateSequenceArraySize), buffer + 0x06, 2);
+            memcpy(&(record.header.Lsn), buffer + 0x08, 8);
+            memcpy(&(record.header.SequenceNumber), buffer + 0x10, 2);
+            memcpy(&(record.header.ReferenceCount), buffer + 0x12, 2);
+            memcpy(&(record.header.FirstAttributeOffset), buffer + 0x14, 2);
+            memcpy(&(record.header.Flags), buffer + 0x16, 2);
+            memcpy(&(record.header.FirstFreeByte), buffer + 0x18, 4);
+            memcpy(&(record.header.BytesAvailable), buffer + 0x1C, 4);
+            memcpy(&(record.header.BaseFileRecordSegment), buffer + 0x20, 8);
+            memcpy(&(record.header.NextAttributeInstance), buffer + 0x28, 2);
+            memcpy(&(record.header.Allign), buffer + 0x2A, 2);
+            memcpy(&(record.header.RecordId), buffer + 0x2C, 4);
 
-            if (record->header.MultiSectorHeader.UpdateSequenceArraySize * 2 >= 1024 - record->header.MultiSectorHeader.UpdateSequenceArrayOffset 
-                || record->header.MultiSectorHeader.UpdateSequenceArraySize * 2 >= 1024 
-                || record->header.MultiSectorHeader.UpdateSequenceArrayOffset >= 1024) {
+            if (record.header.MultiSectorHeader.UpdateSequenceArraySize * 2 >= 1024 - record.header.MultiSectorHeader.UpdateSequenceArrayOffset 
+                || record.header.MultiSectorHeader.UpdateSequenceArraySize * 2 >= 1024 
+                || record.header.MultiSectorHeader.UpdateSequenceArrayOffset >= 1024) {
                 *success = false;
                 return record;
             }
-            memcpy(&(record->header.UpdateArrayForCreateOnly), buffer + record->header.MultiSectorHeader.UpdateSequenceArrayOffset, record->header.MultiSectorHeader.UpdateSequenceArraySize * 2);
+            memcpy(&(record.header.UpdateArrayForCreateOnly), buffer + record.header.MultiSectorHeader.UpdateSequenceArrayOffset, record.header.MultiSectorHeader.UpdateSequenceArraySize * 2);
 
             bool attributeFlag = true;
-            int nextAttributeOffset = record->header.FirstAttributeOffset;
+            int nextAttributeOffset = record.header.FirstAttributeOffset;
             int len = 0;
             int numOfAttributes = 0;
             while (attributeFlag) {
                 auto attr = MFTRecordAttributeParser(buffer, nextAttributeOffset, &attributeFlag, &len);
                 if (attributeFlag) {
-                    record->numOfAtt++;
-                    if(record->numOfAtt ==1 )
-                        record->attribute_list = (MFT_RECORD_ATTRIBUTE*) malloc (sizeof(MFT_RECORD_ATTRIBUTE));
+                    record.numOfAtt++;
+                    if(record.numOfAtt ==1 )
+                        record.attribute_list = (MFT_RECORD_ATTRIBUTE*) malloc (sizeof(MFT_RECORD_ATTRIBUTE));
                     else
-                        record->attribute_list = (MFT_RECORD_ATTRIBUTE*) realloc (record->attribute_list, record->numOfAtt * sizeof(MFT_RECORD_ATTRIBUTE));
-                    memcpy(&record->attribute_list[record->numOfAtt-1], attr, sizeof(MFT_RECORD_ATTRIBUTE));
-                }
-                else
-                    break;
-                free(attr);
-                nextAttributeOffset += len;
-            }
-        }
-        catch (...) {
-            *success = false;
-        }
-        return record;
-    }
-    MFT_RECORD* MFTRecordParser2(unsigned char buffer[], DWORD offset, bool* success) {
-        std::cout << "Record parsing " << std::hex << offset << "\n";
-        MFT_RECORD* record = (MFT_RECORD*)malloc(sizeof(MFT_RECORD));
-        std::cout << "228\n";
-        record->offset = offset;
-        record->numOfAtt = 0;
-        if (buffer[0] != 0x46 || buffer[1] != 0x49 || buffer[2] != 0x4C || buffer[3] != 0x45 || (buffer[4] == '_' && buffer[5] == 'D')) {
-            *success = false;
-            return record;
-        }
-        try {
-            memcpy(&(record->header.MultiSectorHeader.Signature), buffer, 4);
-            memcpy(&(record->header.MultiSectorHeader.UpdateSequenceArrayOffset), buffer + 0x04, 2);
-            memcpy(&(record->header.MultiSectorHeader.UpdateSequenceArraySize), buffer + 0x06, 2);
-            memcpy(&(record->header.Lsn), buffer + 0x08, 8);
-            memcpy(&(record->header.SequenceNumber), buffer + 0x10, 2);
-            memcpy(&(record->header.ReferenceCount), buffer + 0x12, 2);
-            memcpy(&(record->header.FirstAttributeOffset), buffer + 0x14, 2);
-            memcpy(&(record->header.Flags), buffer + 0x16, 2);
-            memcpy(&(record->header.FirstFreeByte), buffer + 0x18, 4);
-            memcpy(&(record->header.BytesAvailable), buffer + 0x1C, 4);
-            memcpy(&(record->header.BaseFileRecordSegment), buffer + 0x20, 8);
-            memcpy(&(record->header.NextAttributeInstance), buffer + 0x28, 2);
-            memcpy(&(record->header.Allign), buffer + 0x2A, 2);
-            memcpy(&(record->header.RecordId), buffer + 0x2C, 4);
-
-            if (record->header.MultiSectorHeader.UpdateSequenceArraySize * 2 >= 1024 - record->header.MultiSectorHeader.UpdateSequenceArrayOffset
-                || record->header.MultiSectorHeader.UpdateSequenceArraySize * 2 >= 1024
-                || record->header.MultiSectorHeader.UpdateSequenceArrayOffset >= 1024) {
-                *success = false;
-                return record;
-            }
-            memcpy(&(record->header.UpdateArrayForCreateOnly), buffer + record->header.MultiSectorHeader.UpdateSequenceArrayOffset, record->header.MultiSectorHeader.UpdateSequenceArraySize * 2);
-
-            bool attributeFlag = true;
-            int nextAttributeOffset = record->header.FirstAttributeOffset;
-            int len = 0;
-            int numOfAttributes = 0;
-            while (attributeFlag) {
-                auto attr = MFTRecordAttributeParser(buffer, nextAttributeOffset, &attributeFlag, &len);
-                if (attributeFlag) {
-                    record->numOfAtt++;
-                    if (record->numOfAtt == 1)
-                        record->attribute_list = (MFT_RECORD_ATTRIBUTE*)malloc(sizeof(MFT_RECORD_ATTRIBUTE));
-                    else
-                        record->attribute_list = (MFT_RECORD_ATTRIBUTE*)realloc(record->attribute_list, record->numOfAtt * sizeof(MFT_RECORD_ATTRIBUTE));
-                    memcpy(&record->attribute_list[record->numOfAtt - 1], attr, sizeof(MFT_RECORD_ATTRIBUTE));
+                        record.attribute_list = (MFT_RECORD_ATTRIBUTE*) realloc (record.attribute_list, record.numOfAtt * sizeof(MFT_RECORD_ATTRIBUTE));
+                    memcpy(&record.attribute_list[record.numOfAtt-1], attr, sizeof(MFT_RECORD_ATTRIBUTE));
                 }
                 else
                     break;

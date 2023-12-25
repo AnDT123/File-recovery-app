@@ -27,21 +27,21 @@ namespace Tool {
 
         return filedata;
     }
-    MFT_RECORD_ATTRIBUTE* MFTRecordAttributeParser(unsigned char buffer[], int offset, bool* success, int* attributeLength) {
-        if (offset >= 1024) {
+    MFT_RECORD_ATTRIBUTE* MFTRecordAttributeParser(unsigned char buffer[], int offset, bool* success, int* attributeLength, int bytesPerFileRecordSegment) {
+        if (offset >= bytesPerFileRecordSegment) {
             *success = false;
             return nullptr;
         }
         unsigned char* startOffset = buffer + offset;
-        MFT_RECORD_ATTRIBUTE* mra = (MFT_RECORD_ATTRIBUTE*) malloc(sizeof(MFT_RECORD_ATTRIBUTE));
+        MFT_RECORD_ATTRIBUTE* mra = (MFT_RECORD_ATTRIBUTE*)malloc(sizeof(MFT_RECORD_ATTRIBUTE));
         memcpy(&(mra->TypeCode), startOffset, 4);
         //check false
-        if (mra->TypeCode == 0xFFFFFFFF || !(mra->TypeCode == 0x00000010 || mra->TypeCode == 0x00000030 || mra->TypeCode == 0x00000080 || mra->TypeCode == 0x00000090) ) {
+        if (mra->TypeCode == 0xFFFFFFFF || !(mra->TypeCode == 0x00000010 || mra->TypeCode == 0x00000030 || mra->TypeCode == 0x00000080 || mra->TypeCode == 0x00000090)) {
             *success = false;
             return nullptr;
         }
         memcpy(&(mra->RecordLength), startOffset + 0x4, 4);
-        if (mra->RecordLength > 1024) {
+        if (mra->RecordLength > bytesPerFileRecordSegment) {
             *success = false;
             return nullptr;
         }
@@ -56,18 +56,18 @@ namespace Tool {
             memcpy(&(mra->Resident.ValueOffset), startOffset + 0x14, 2);
             memcpy(&(mra->Resident.ResidentFlags), startOffset + 0x16, 1);
             memcpy(&(mra->Resident.Reserved), startOffset + 0x17, 1);
-            *success = (mra->Resident.ValueLength) > 0 && (mra->Resident.ValueLength < (1024 - offset)) && (mra->NameLength < mra->Resident.ValueLength < (1024 - offset));
-            if (!(*success)) 
+            *success = (mra->Resident.ValueLength) > 0 && (mra->Resident.ValueLength < (bytesPerFileRecordSegment - offset)) && (mra->NameLength < mra->Resident.ValueLength < (bytesPerFileRecordSegment - offset));
+            if (!(*success))
                 return nullptr;
-            
+
             if (mra->NameLength > 0) {
-                mra->Resident.NData.Name = (UCHAR*) malloc (mra->NameLength * 2 * sizeof(UCHAR));
+                mra->Resident.NData.Name = (UCHAR*)malloc(mra->NameLength * 2 * sizeof(UCHAR));
                 for (int i = 0; i < mra->NameLength * 2; i++) {
                     memcpy(&mra->Resident.NData.Name[i], startOffset + mra->NameOffset + i, sizeof(UCHAR));
                 }
-                
+
             }
-            mra->Resident.NData.Content = (UCHAR*) malloc (mra->Resident.ValueLength * sizeof(UCHAR));
+            mra->Resident.NData.Content = (UCHAR*)malloc(mra->Resident.ValueLength * sizeof(UCHAR));
             for (int i = 0; i < mra->Resident.ValueLength; i++) {
                 memcpy(&mra->Resident.NData.Content[i], startOffset + mra->Resident.ValueOffset + i, sizeof(UCHAR));
             }
@@ -82,25 +82,25 @@ namespace Tool {
             memcpy(&(mra->Nonresident.ValidDataLength), startOffset + 0x30, 8);
             memcpy(&(mra->Nonresident.TotalAllocated), startOffset + 0x38, 8);
             if (mra->NameLength > 0) {
-                mra->Nonresident.NData.Name  = (UCHAR*) malloc( mra->NameLength * 2 * sizeof(UCHAR));
+                mra->Nonresident.NData.Name = (UCHAR*)malloc(mra->NameLength * 2 * sizeof(UCHAR));
                 for (int i = 0; i < mra->NameLength * 2; i++) {
                     memcpy(&mra->Nonresident.NData.Name[i], startOffset + mra->NameOffset + i, sizeof(UCHAR));
                 }
-              
+
             }
             int dataRunsLength = mra->RecordLength - mra->Nonresident.MappingPairsOffset;
-            *success = dataRunsLength < (1024 - offset) && (mra->NameLength < (1024 - offset));
-            mra->Nonresident.NData.Content = (UCHAR*) malloc( (dataRunsLength) * sizeof(UCHAR));
+            *success = dataRunsLength < (bytesPerFileRecordSegment - offset) && (mra->NameLength < (1024 - offset));
+            mra->Nonresident.NData.Content = (UCHAR*)malloc((dataRunsLength) * sizeof(UCHAR));
             //for loop through datarun
             for (int i = 0; i < dataRunsLength; i++) {
                 memcpy(&mra->Nonresident.NData.Content[i], startOffset + mra->Nonresident.MappingPairsOffset + i, sizeof(UCHAR));
             }
-            
+
         }
         return mra;
 
     }
-    MFT_RECORD MFTRecordParser(unsigned char buffer[], DWORD offset, bool* success) {
+    MFT_RECORD MFTRecordParser(unsigned char buffer[], DWORD offset, bool* success, int bytesPerFileRecordSegment) {
         MFT_RECORD record;
         record.offset = offset;
         record.numOfAtt = 0;
@@ -124,9 +124,9 @@ namespace Tool {
             memcpy(&(record.header.Allign), buffer + 0x2A, 2);
             memcpy(&(record.header.RecordId), buffer + 0x2C, 4);
 
-            if (record.header.MultiSectorHeader.UpdateSequenceArraySize * 2 >= 1024 - record.header.MultiSectorHeader.UpdateSequenceArrayOffset
-                || record.header.MultiSectorHeader.UpdateSequenceArraySize * 2 >= 1024
-                || record.header.MultiSectorHeader.UpdateSequenceArrayOffset >= 1024) {
+            if (record.header.MultiSectorHeader.UpdateSequenceArraySize * 2 >= bytesPerFileRecordSegment - record.header.MultiSectorHeader.UpdateSequenceArrayOffset
+                || record.header.MultiSectorHeader.UpdateSequenceArraySize * 2 >= bytesPerFileRecordSegment
+                || record.header.MultiSectorHeader.UpdateSequenceArrayOffset >= bytesPerFileRecordSegment) {
                 *success = false;
                 return record;
             }
@@ -137,7 +137,7 @@ namespace Tool {
             int len = 0;
             int numOfAttributes = 0;
             while (attributeFlag) {
-                auto attr = MFTRecordAttributeParser(buffer, nextAttributeOffset, &attributeFlag, &len);
+                auto attr = MFTRecordAttributeParser(buffer, nextAttributeOffset, &attributeFlag, &len, bytesPerFileRecordSegment);
                 if (attributeFlag) {
                     record.numOfAtt++;
                     if (record.numOfAtt == 1)
@@ -157,92 +157,26 @@ namespace Tool {
         }
         return record;
     }
-    std::vector<int> NHIPHAN(std::string filename) {
-        std::ifstream file;
-        // Mở tệp tin để đọc
-        file.open(filename, std::ios::binary);
-        if (!file.is_open()) {
-            std::cerr << "Không thể mở tệp tin " << filename << " để đọc." << std::endl;
-            exit;
-        }
 
-        // Đọc toàn bộ nội dung của tệp tin vào vector
-        std::vector<char> binary_data(std::istreambuf_iterator<char>(file), {});
-        // Tạo một vector để lưu trữ mã nhị phân dưới dạng chuỗi
-        std::vector<std::string> binary_string_vector;
-        // In ra mã nhị phân
-      //  std::cout << "Mã nhị phân đọc được:" << std::endl;
-        for (const char& byte : binary_data) {
-            //    std::cout << std::bitset<8>(byte).to_string() << " ";
-            std::string binary_string = std::bitset<8>(byte).to_string();
-            binary_string_vector.push_back(binary_string);
-        }
-        // Chuyển vector chuỗi thành vector kiểu char
-        std::vector<char> char_vector;
-        for (const auto& binary_string : binary_string_vector) {
-            const char* char_array = binary_string.c_str();
-            char_vector.insert(char_vector.end(), char_array, char_array + binary_string.size());
-        }
-        // Tạo một vector int để lưu giá trị kiểu int tương ứng
-        std::vector<int> int_vector;
-        // Chuyển đổi từng ký tự char sang kiểu int và lưu vào vector int
-        for (const char& c : char_vector) {
-            if (c == '0' || c == '1') {
-                int value = c - '0'; // Chuyển đổi từ ký tự sang giá trị int (1 hoặc 0)
-                int_vector.push_back(value);
-            }
-            else {
-                // Xử lý trường hợp ký tự không phải '0' hoặc '1'
-                std::cerr << "Lỗi: Ký tự không hợp lệ - " << c << std::endl;
-                // Có thể bỏ qua hoặc xử lý theo nhu cầu của bạn
-            }
-        }
-
-        // Đóng tệp tin (đóng tự động khi ra khỏi phạm vi)
-        file.close();
-        return int_vector;
-    }
-    std::vector<int> groupBits(const std::vector<int>& inputVector) {
-        std::vector<int> groupedVector;
-
-        // Đảm bảo độ dài của vector là bội số của 4
-        size_t vectorLength = inputVector.size();
-        if (vectorLength % 4 != 0) {
-            // Nếu không phải là bội số của 4, cắt bớt phần dư
-            vectorLength -= vectorLength % 4;
-        }
-
-        // Nhóm 4 bit và thêm vào groupedVector
-        for (size_t i = 0; i < vectorLength; i += 4) {
-            // Chuyển 4 bit thành một số và thêm vào groupedVector
-            int groupValue = 0;
-            for (size_t j = 0; j < 4; ++j) {
-                groupValue = (groupValue << 1) | inputVector[i + j];
-            }
-            groupedVector.push_back(groupValue);
-        }
-
-        return groupedVector;
-    }
-
-    std::vector<MFT_RECORD> ParseRecordsWithMFTDatarun(HANDLE fileHandle, MFT_RECORD mft) {
+    std::vector<MFT_RECORD> ParseRecordsWithMFTDatarun(HANDLE fileHandle, MFT_RECORD mft, int bytesPerFileRecordSegment, int bytesPerCluster) {
         vector<FRAGMENT> datarun = mft.GetDataRun();
         vector<MFT_RECORD> mftRecords;
         for (FRAGMENT f : datarun) {
             const int fragmentSize = f.NumberOfClusters;
-            unsigned char fragment[1024];
+            unsigned char* fragment = (unsigned char*)malloc(sizeof(unsigned char) * bytesPerFileRecordSegment);
             DWORD bytesRead;
             OVERLAPPED o{};
             // Set the offset from the start of the file
-            for (int i = 0; i < f.NumberOfClusters * 4; i++) {
+            for (int i = 0; i < f.NumberOfClusters * bytesPerCluster/ bytesPerFileRecordSegment; i++) {
                 bool success = true;
-                o.Offset = f.FragmentOffset * 4096 + i * 1024;
+                o.Offset = f.FragmentOffset * bytesPerCluster + i * bytesPerFileRecordSegment;
                 std::cout << std::hex << o.Offset << std::endl;
-                ReadFile(fileHandle, fragment, sizeof(fragment), &bytesRead, &o);
-                MFT_RECORD record = Tool::MFTRecordParser(fragment, o.Offset, &success);
+                ReadFile(fileHandle, fragment, bytesPerFileRecordSegment, &bytesRead, &o);
+                MFT_RECORD record = Tool::MFTRecordParser(fragment, o.Offset, &success, bytesPerFileRecordSegment);
                 if (success)
                     mftRecords.push_back(record);
             }
+            free(fragment);
         }
         return mftRecords;
     }

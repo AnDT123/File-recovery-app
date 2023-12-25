@@ -111,7 +111,9 @@ int main(int, char**)
     unsigned char buffer[4096];
     DWORD bytesRead;     
     OVERLAPPED ol{};
-
+    LARGE_INTEGER mftStartLcn;
+    ULONGLONG bytesPerCluster;
+    unsigned long bytesPerFileRecordSegment;
     bool flag;
     MFT_RECORD mft;
     vector<wstring> filename;
@@ -166,6 +168,7 @@ int main(int, char**)
         HomePage::ShowAppMainMenuBar(drivesVec, &loadDrive,&currentDrive);
         if (loadDrive == true) {
             if (logicalDrivePath[4] != currentDrive[0]) {
+                DWORD dwWritten = 0;
                 logicalDrivePath[4] = currentDrive[0];
                 diskHandle= CreateFileA(
                     logicalDrivePath.c_str(),
@@ -176,16 +179,36 @@ int main(int, char**)
                     FILE_FLAG_BACKUP_SEMANTICS,
                     NULL
                 );
-                ol.Offset = 0xC0000 * 4096;
+                PNTFS_VOLUME_DATA_BUFFER ntfsDriver = { 0 };
+                ntfsDriver = (PNTFS_VOLUME_DATA_BUFFER)malloc(sizeof(NTFS_VOLUME_DATA_BUFFER) + sizeof(NTFS_EXTENDED_VOLUME_DATA));
+                bool bDeviceIoControl = DeviceIoControl(diskHandle, FSCTL_GET_NTFS_VOLUME_DATA, NULL, 0, ntfsDriver, sizeof(NTFS_VOLUME_DATA_BUFFER) + sizeof(NTFS_EXTENDED_VOLUME_DATA), &dwWritten, NULL);
+                if (!bDeviceIoControl)
+                {
+                    free(ntfsDriver);
+                    std::cout << "Error" << std::endl << GetLastError() << std::endl;
+                    if (CloseHandle(diskHandle) != 0)
+
+                        printf("Volume handle was closed successfully!\n");
+                    else
+                    {
+                        std::cout << "Error closing" << std::endl << GetLastError();
+                    }
+                    exit(1);
+                }
+                bytesPerFileRecordSegment = ntfsDriver->BytesPerFileRecordSegment;
+                bytesPerCluster = ntfsDriver->BytesPerCluster;
+                mftStartLcn = ntfsDriver->Mft2StartLcn;
+                ol.Offset =  mftStartLcn.QuadPart * bytesPerCluster;
                 ReadFile(diskHandle, buffer, sizeof(buffer), &bytesRead, &ol);
-                MFT_RECORD mft = Tool::MFTRecordParser(buffer, 0, &flag);
-                mftRecords = Tool::ParseRecordsWithMFTDatarun(diskHandle, mft);
+                MFT_RECORD mft = Tool::MFTRecordParser(buffer, 0, &flag, bytesPerFileRecordSegment);
+                mftRecords = Tool::ParseRecordsWithMFTDatarun(diskHandle, mft, bytesPerFileRecordSegment, bytesPerCluster);
                 std::cout << mftRecords.size() << endl;
                 tree = new FileSystemTree(mftRecords);
                 parentNode = tree->GetRoot();
                 std::vector<NODE*> newTraversePath;
                 newTraversePath.push_back(parentNode);
                 traversePath = newTraversePath;
+                free(ntfsDriver);
             }
             isRunning = true;
             loadDrive = false;

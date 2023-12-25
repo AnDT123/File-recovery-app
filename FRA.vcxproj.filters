@@ -13,24 +13,21 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Frontend">
+      <UniqueIdentifier>{a762d518-94c5-49c2-a1f5-9d164f35e92a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Backend">
+      <UniqueIdentifier>{1684ec48-f6ce-4169-98c9-49812b93d81c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ImGui">
+      <UniqueIdentifier>{3b56a09d-021b-4331-a3c3-bb505c838567}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Helper">
+      <UniqueIdentifier>{ff305e00-2035-4fc1-8cef-86612d203da0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="vendor\ImGui\imgui.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="vendor\ImGui\imgui_demo.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="vendor\ImGui\imgui_draw.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="vendor\ImGui\imgui_tables.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="vendor\ImGui\imgui_widgets.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="vendor\ImGui\backends\imgui_impl_dx9.cpp">
@@ -39,28 +36,98 @@
     <ClCompile Include="vendor\ImGui\backends\imgui_impl_win32.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="vendor\ImGui\imgui_demo.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="vendor\ImGui\imgui_draw.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="vendor\ImGui\imgui_tables.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="vendor\ImGui\imgui_widgets.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="vendor\ImGui\imgui.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Helpers\Helper.cpp">
+      <Filter>Helper</Filter>
+    </ClCompile>
+    <ClCompile Include="nativefiledialog\nfd_common.c">
+      <Filter>Helper</Filter>
+    </ClCompile>
+    <ClCompile Include="nativefiledialog\nfd_win.cpp">
+      <Filter>Helper</Filter>
+    </ClCompile>
+    <ClCompile Include="Backend\DataStructures.cpp">
+      <Filter>Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="Frontend\HomePage.cpp">
+      <Filter>Frontend</Filter>
+    </ClCompile>
+    <ClCompile Include="Backend\Tool.cpp">
+      <Filter>Backend</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="vendor\ImGui\imgui.h">
-      <Filter>Header Files</Filter>
+      <Filter>ImGui</Filter>
     </ClInclude>
     <ClInclude Include="vendor\ImGui\imgui_internal.h">
-      <Filter>Header Files</Filter>
+      <Filter>ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="vendor\ImGui\imstb_rectpack.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="vendor\ImGui\imstb_textedit.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="vendor\ImGui\imstb_truetype.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="vendor\ImGui\imconfig.h">
+      <Filter>ImGui</Filter>
     </ClInclude>
     <ClInclude Include="vendor\ImGui\backends\imgui_impl_dx9.h">
-      <Filter>Header Files</Filter>
+      <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="vendor\ImGui\backends\imgui_impl_win32.h">
-      <Filter>Header Files</Filter>
+      <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="Helpers\Helper.h">
+      <Filter>Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="nativefiledialog\common.h">
+      <Filter>Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="nativefiledialog\include\nfd.h">
+      <Filter>Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="nativefiledialog\nfd_common.h">
+      <Filter>Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="nativefiledialog\simple_exec.h">
+      <Filter>Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="Backend\DataStructures.h">
+      <Filter>Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="Backend\ntfs.h">
+      <Filter>Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="Frontend\HomePage.h">
+      <Filter>Frontend</Filter>
+    </ClInclude>
+    <ClInclude Include="Backend\Tool.h">
+      <Filter>Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\ImGui\imgui_memory_editor.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="vendor\ImGui\misc\debuggers\imgui.natstepfilter">
+      <Filter>ImGui</Filter>
+    </None>
+    <None Include="nativefiledialog\nfd_cocoa.m">
+      <Filter>Helper</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="vendor\ImGui\misc\debuggers\imgui.natvis">
+      <Filter>ImGui</Filter>
+    </Natvis>
   </ItemGroup>
 </Project>

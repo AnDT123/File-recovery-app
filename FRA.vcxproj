@@ -112,6 +112,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <IncludePath>$(ProjectDir)vendor\ImGui;$(ProjectDir)vendor\ImGui\backends;$(IncludePath)</IncludePath>
+    <LibraryPath>$(DXSDK_DIR)LIB\x86;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnabled>true</VcpkgEnabled>

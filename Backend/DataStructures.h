@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 #include <iostream>
+#include <algorithm>
 using namespace std;
 namespace DataStructures {
     typedef union {
@@ -78,8 +79,11 @@ namespace DataStructures {
             ULONG GetBaseRecordId() {
                 return header.BaseFileRecordSegment.SegmentNumberLowPart;
             }
-            ULONG GetBaseRecordSeqNumber() {
-                return header.BaseFileRecordSegment.SequenceNumber;
+            //USHORT GetBaseRecordSeqNumber() {
+            //    return header.BaseFileRecordSegment.SequenceNumber;
+            //}
+            USHORT GetSeqNumber() {
+                return header.SequenceNumber;
             }
             vector<FILE_NAME_DATA> GetFilenameVec() {
                 vector<FILE_NAME_DATA> vec;
@@ -102,13 +106,10 @@ namespace DataStructures {
                 return (vector<FRAGMENT>) NULL;
             }
             bool IsDir() {
-                //for (int i = 0; i < numOfAtt; i++) {
-                //    if (attribute_list[i].TypeCode == 0x00000090) {
-                //        return true;
-                //    }
-                //}
-                //return false;
                 return header.Flags == 0x0002 || header.Flags == 0x0003;
+            }
+            bool Is_in_use() {
+                return header.Flags % 2 == 1;
             }
         };
     class NODE {
@@ -116,6 +117,8 @@ namespace DataStructures {
         wchar_t* Name;
         ULONG RecordId;
         NODE* NextSibling;
+        FILE_NAME_DATA Fnd;
+        bool IsDirectory = false;
     };
     class FILE_NODE : public NODE {
 
@@ -128,24 +131,22 @@ namespace DataStructures {
     private:
         vector<ULONG> NodeIds;
         DIR_NODE* root;
+        DIR_NODE* orphanFiles;
         vector<MFT_RECORD> recordVec;
 
-        MFT_RECORD findRecordById(ULONG id) {
-            for (auto r : recordVec) {
-                if (r.GetRecordId() == id)
-                {
-                    return r;
-                }
-            }
-        }
         NODE* GetIdWithNode(DIR_NODE* node, ULONG id) {
             if (id == 0x00000005)
-                return root;
+                return root;            
+            if (id == 0xDEADBEEF)
+                return orphanFiles;
             if (node->RecordId == id)
                 return node;
+
             NODE* child = node->FirstChild;
+            if(node == root)
+                child = child->NextSibling;
             while (child != nullptr) {
-                if (findRecordById(child->RecordId).IsDir()) {
+                if (FindRecordById(child->RecordId).IsDir()) {
                     auto result = GetIdWithNode((DIR_NODE*)child, id);
                     if (result != nullptr)
                         return result;
@@ -154,13 +155,13 @@ namespace DataStructures {
             }
             return nullptr;
         }
-        bool is_in_tree(ULONG id) {
+        bool Is_in_tree(ULONG id) {
             if (std::find(NodeIds.begin(), NodeIds.end(), id) != NodeIds.end())
                 return true;
             else
                 return false;
         }
-        void insert(DIR_NODE* parent, NODE* child) {
+        void Insert(DIR_NODE* parent, NODE* child) {
             if (parent->FirstChild == nullptr) {
                 parent->FirstChild = child;
                 return;
@@ -173,58 +174,48 @@ namespace DataStructures {
             //NodeIds.push_back(child->RecordId);
         }
     public:
-        FileSystemTree(vector<MFT_RECORD> vec) {
-            DIR_NODE* r = (DIR_NODE*)malloc(sizeof(DIR_NODE));
-            r->Name = (wchar_t*)L"root";
-            r->RecordId = 0x00000005;
-            NodeIds.push_back(r->RecordId);
-            r->FirstChild = nullptr;
-            r->NextSibling = nullptr;
-            root = r;
-            recordVec = vec;
-            for (auto record : vec) {
-                for (auto fnd : record.GetFilenameVec()) {
-                    if (record.GetRecordId() == 41)
-                            int a = 0;
-                    if (record.IsDir() && record.GetRecordId() != 0x00000005)
-                        AddDirNodeToTree(fnd, record.GetRecordId());
-                }
-            }
-            for (auto record : vec) {
-                for (auto fnd : record.GetFilenameVec()) {
-                    if (!record.IsDir())
-                        AddFileNodeToTree(fnd, record.GetRecordId());
-                }
-            }
-            int a = 0;
+        MFT_RECORD FindRecordById(ULONG targetId) {
+            auto iterator = std::lower_bound(recordVec.begin(), recordVec.end(), targetId, [](const MFT_RECORD& record, ULONG target) {
+                return record.header.RecordId < target;
+                });
+            if (iterator != recordVec.end() && iterator->GetRecordId() == targetId)
+                return *iterator;
         }
         NODE* GetNodeFromId(ULONG id) {
             return GetIdWithNode(root, id);
         }
         void AddDirNodeToTree(FILE_NAME_DATA fnd, ULONG recordId) {
-            //std::cout << "AddDirNodeToTree" << std::endl;
-            if (recordId == 41)
-                int a = 0;
-            if (is_in_tree(recordId))
+            if (Is_in_tree(recordId))
                 return;
+            DIR_NODE* childNode = nullptr;
+            bool isOrphan = false;
             NodeIds.push_back(recordId);
             DIR_NODE* parentNode = (DIR_NODE*)malloc(sizeof(DIR_NODE));
-            DIR_NODE* childNode = nullptr;
             wchar_t* filename = (wchar_t*)malloc(fnd.FileNameLength * sizeof(wchar_t) + 2);
             memcpy(filename, fnd.FileName, fnd.FileNameLength * sizeof(wchar_t));
             filename[fnd.FileNameLength] = 0x00;
             parentNode->Name = filename;
+            parentNode->Fnd = fnd;
             parentNode->RecordId = recordId;
             parentNode->FirstChild = nullptr;
             parentNode->NextSibling = nullptr;
+            parentNode->IsDirectory = true;
 
             while (true) {
                 recordId = fnd.ParentDirectoryReference.SegmentNumberLowPart;
-                if (is_in_tree(recordId)) {
+                if (Is_in_tree(recordId)) {
                     break;
                 }
-                MFT_RECORD currRecord = findRecordById(recordId);
+                MFT_RECORD currRecord = FindRecordById(recordId);
                 //-------------File Sequence Check here---------------
+                if (currRecord.Is_in_use())
+                    isOrphan = fnd.ParentDirectoryReference.SequenceNumber != currRecord.GetSeqNumber();
+                else
+                    isOrphan = fnd.ParentDirectoryReference.SequenceNumber != currRecord.GetSeqNumber() - 1;
+                if (isOrphan) {
+                    //Insert(orphanFiles, parentNode);
+                    return;
+                }
                 //---------------currRecord and fnd-------------------
                 vector<FILE_NAME_DATA> filenameVec = currRecord.GetFilenameVec();
                 if (filenameVec.size() <= 0) {
@@ -239,22 +230,21 @@ namespace DataStructures {
                 node->Name = filename;
                 node->RecordId = recordId;
                 node->NextSibling = nullptr;
+                node->IsDirectory = true;
+                node->Fnd = fnd;
                 NodeIds.push_back(recordId);
                 
                 childNode = parentNode;
                 parentNode = node;
                 parentNode->FirstChild = childNode;
             }
-            insert((DIR_NODE*) GetNodeFromId(recordId), parentNode);
+            Insert((DIR_NODE*) GetNodeFromId(recordId), parentNode);
         }
         void AddFileNodeToTree(FILE_NAME_DATA fnd, ULONG recordId) {
-            //std::cout << "AddFileNodeToTree" << std::endl;
-            if (is_in_tree(recordId))
+            bool isOrphan = false;
+            if (Is_in_tree(recordId))
                 return;
             auto parentId = fnd.ParentDirectoryReference.SegmentNumberLowPart;
-            //-------------File Sequence Check here---------------
-            // MFT_RECORD* currRecord = findRecordById(parentId);
-            //---------------currRecord and fnd-------------------
 
             FILE_NODE *childNode = (FILE_NODE*) malloc(sizeof(FILE_NODE));
             wchar_t* filename = (wchar_t*)malloc(fnd.FileNameLength * sizeof(wchar_t) + 2);
@@ -263,10 +253,60 @@ namespace DataStructures {
             childNode->Name = filename;
             childNode->RecordId = recordId;
             childNode->NextSibling = nullptr;
+            childNode->Fnd = fnd;
+            childNode->IsDirectory = false;
+            //-------------File Sequence Check here---------------
+            MFT_RECORD currRecord = FindRecordById(parentId);
+            if (currRecord.Is_in_use())
+                isOrphan = fnd.ParentDirectoryReference.SequenceNumber != currRecord.GetSeqNumber();
+            else
+                isOrphan = fnd.ParentDirectoryReference.SequenceNumber != currRecord.GetSeqNumber() - 1;
+            if (isOrphan) {
+                Insert(orphanFiles, childNode);
+                return;
+            }
+            //---------------currRecord and fnd-------------------
 
-            if (is_in_tree(parentId))
-                insert((DIR_NODE*) GetNodeFromId(parentId), childNode);
-            auto c = 1;
+            if (Is_in_tree(parentId))
+                Insert((DIR_NODE*) GetNodeFromId(parentId), childNode);
+        }
+        DIR_NODE* GetRoot() {
+            return root;
+        }
+        FileSystemTree(){}
+        FileSystemTree(vector<MFT_RECORD> vec) {
+            orphanFiles = (DIR_NODE*)malloc(sizeof(DIR_NODE));
+            orphanFiles->Name = (wchar_t*)L"OrphanFiles";
+            orphanFiles->NextSibling = nullptr;
+            orphanFiles->RecordId = 0xDEADBEEF;
+            orphanFiles->FirstChild = nullptr;
+            orphanFiles->IsDirectory = true;
+
+            root = (DIR_NODE*)malloc(sizeof(DIR_NODE));
+            root->Name = (wchar_t*)L"root";
+            root->RecordId = 0x00000005;
+            NodeIds.push_back(root->RecordId);
+            root->FirstChild = orphanFiles;
+            root->NextSibling = nullptr;
+            root->IsDirectory = true;
+
+            recordVec = vec;
+            std::sort(recordVec.begin(), recordVec.end(), [](const MFT_RECORD& a, const MFT_RECORD& b) {
+                return a.header.RecordId < b.header.RecordId;
+                });
+            for (auto record : vec) {
+                for (auto fnd : record.GetFilenameVec()) {
+                    if (record.IsDir() && record.GetRecordId() != 0x00000005)
+                        AddDirNodeToTree(fnd, record.GetRecordId());
+                }
+            }
+            for (auto record : vec) {
+                for (auto fnd : record.GetFilenameVec()) {
+                    if (!record.IsDir())
+                        AddFileNodeToTree(fnd, record.GetRecordId());
+                }
+            }
+            //int a = 0;
         }
     };
 }

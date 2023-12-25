@@ -20,6 +20,8 @@
 #include <fcntl.h>
 #include <io.h>
 #include <imgui_memory_editor.h>
+#include <codecvt> 
+#include "nativefiledialog/include/nfd.h"
 // Data
 static LPDIRECT3D9              g_pD3D = nullptr;
 static LPDIRECT3DDEVICE9        g_pd3dDevice = nullptr;
@@ -69,25 +71,6 @@ int main(int, char**)
     ImGui_ImplWin32_Init(hwnd);
     ImGui_ImplDX9_Init(g_pd3dDevice);
 
-    // Load Fonts
-    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-    // - If the file cannot be loaded, the function will return a nullptr. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-    // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
-    // - Use '#define IMGUI_ENABLE_FREETYPE' in your imconfig file to use Freetype for higher quality font rendering.
-    // - Read 'docs/FONTS.md' for more instructions and details.
-    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-    //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\segoeui.ttf", 18.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
-    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
-    //IM_ASSERT(font != nullptr);
-
-
-    //--------------------------------------------
-        // Our state
     bool show_demo_window = true;
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
@@ -99,75 +82,62 @@ int main(int, char**)
     char inputBuffer[64] = "";
     const int bufferSize = 64;
     bool isTyping = false;
-    bool showFileData = true;
-    bool showInfoFile = false;
-    std::string file_name = "D:/a.txt";
-    std::vector<char> infoData;
-    // Main loop
-    //--------------------------------------------
-    HANDLE fileHandle = CreateFileA(
-        "\\\\.\\E:",
-        GENERIC_READ,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-        NULL,
-        OPEN_EXISTING,
-        FILE_FLAG_BACKUP_SEMANTICS,
-        NULL
-    );
+    //bool showInfoFile = false;
+    //std::vector<char> infoData;
+
+
+    //------------------------------------------GET AVAILABLE LOGICAL DRIVE--------------------------------------------------
+    char drivesBuff[255];
+    DWORD numberOfDrives = GetLogicalDriveStringsA(sizeof(drivesBuff) - 1, drivesBuff);
+    std::vector<string> drivesVec;
+    if (numberOfDrives > 0) {
+        char* currentDrive = drivesBuff;
+        while (*currentDrive != '\0') {
+            std::cout << "Drive: " << currentDrive << std::endl;
+            drivesVec.push_back(std::string(currentDrive));
+            currentDrive += strlen(currentDrive) + 1; // Move to the next drive
+        }
+    }
+    else {
+        std::cerr << "Failed to retrieve logical drives." << std::endl;
+    }
+    //-----------------------------------------END REGION-------------------------------------------------------------------
+    //------------------------------------INITIALIZE FILE SYSTEM TREE VARIABLES----------------------------------------------
+    bool loadDrive = false;
+    bool isRunning = false;
+    std::string currentDrive;
+    std::string logicalDrivePath = "\\\\.\\0:";
+    HANDLE diskHandle = new HANDLE;
     unsigned char buffer[4096];
     DWORD bytesRead;     
     OVERLAPPED ol{};
-    // Set the offset from the start of the file
-    ol.Offset = 0xC0000 *4096;
-    ReadFile(fileHandle, buffer, sizeof(buffer), &bytesRead, &ol);
-    std::vector<std::vector<unsigned char>> filedata = Tool::HEXA(buffer, bytesRead);
+
     bool flag;
-    MFT_RECORD mft = Tool::MFTRecordParser(buffer, 0, &flag);
-    //vector<FILE_NAME_DATA> vec = mft.GetFilenameVec();
-    //FILE_NAME_DATA fnd = vec.at(0);
+    MFT_RECORD mft;
     vector<wstring> filename;
-    vector<FRAGMENT> datarun= mft.GetDataRun();
     vector<MFT_RECORD> mftRecords;
-    for (FRAGMENT f : datarun) {
-        const int fragmentSize = f.NumberOfClusters;
-        unsigned char fragment[1024];
-        DWORD bytesRead;
-        OVERLAPPED o{};
-        // Set the offset from the start of the file
-        for (int i = 0; i < f.NumberOfClusters * 4; i++) {
-            bool success = true;
-            o.Offset = f.FragmentOffset * 4096 + i * 1024;
-            std::cout << std:: hex << o.Offset << std::endl;
-            ReadFile(fileHandle, fragment, sizeof(fragment), &bytesRead, &o);
-            MFT_RECORD record = Tool::MFTRecordParser(fragment, o.Offset, &success);
-            if (success)
-                mftRecords.push_back(record);
-        }
-    }
-    //for (MFT_RECORD r : mftRecords) {
-    //    if (r.offset == 0xC0009C00)
-    //        auto a = r.IsDir();
-    //    vector<FILE_NAME_DATA> filenameDataVec = r.GetFilenameVec();
-    //    if (filenameDataVec.size() > 0) {
-    //        _setmode(_fileno(stdout), _O_U16TEXT);
-    //        //std::wstring wideString = L"Hello, 你好, 🌍";
-    //        FILE_NAME_DATA fnd = filenameDataVec.at(0);
-    //        wchar_t* filename = (wchar_t*) malloc (fnd.FileNameLength * sizeof(wchar_t) + 2);
-    //        memcpy(filename, fnd.FileName, fnd.FileNameLength * sizeof(wchar_t));
-    //        filename[fnd.FileNameLength] = 0x00;
-    //        std::wcout << filename << endl;
-    //    }
-    //    int b = 0;
-    //}
-    auto tree = new FileSystemTree(mftRecords);
-    std::map<ULONG, vector<ULONG>> recordExtensionMap;
-     std::cout << mftRecords.size() << endl;
+    FileSystemTree* tree = new FileSystemTree();
     // Main loop
     bool done = false;
+    //-------------------------------VARIABLES FOR FILE NAVIGATION-----------------------------------------------------------
+    DIR_NODE* parentNode = new DIR_NODE();
+    std::vector<NODE*> traversePath;
+    int selectedId = -1;
+    int previousSelectedId = -1;
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+
+
+    //------------------------------------END REGION------------------------------------------------------------------------
+    //------------------------------VARIABLES FOR RECOVER DATA STEP---------------------------------------------------------
+    MFT_RECORD recoverRecord;
+    //------------------------------------END REGION------------------------------------------------------------------------
+    //-----------------------------------VARIABLE FOR HEX VIEWER---------------------------------------------------------
+    std::vector<int> filedata;
+    bool showFileData = false;
+    //------------------------------------END REGION------------------------------------------------------------------------
+
     while (!done)
     {
-        // Poll and handle messages (inputs, window resize, etc.)
-        // See the WndProc() function below for our to dispatch events to the Win32 backend.
         MSG msg;
         while (::PeekMessage(&msg, nullptr, 0U, 0U, PM_REMOVE))
         {
@@ -193,44 +163,175 @@ int main(int, char**)
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
         //---------------------------------
-        HomePage::ShowAppMainMenuBar();
+        HomePage::ShowAppMainMenuBar(drivesVec, &loadDrive,&currentDrive);
+        if (loadDrive == true) {
+            if (logicalDrivePath[4] != currentDrive[0]) {
+                logicalDrivePath[4] = currentDrive[0];
+                diskHandle= CreateFileA(
+                    logicalDrivePath.c_str(),
+                    GENERIC_READ,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                    NULL,
+                    OPEN_EXISTING,
+                    FILE_FLAG_BACKUP_SEMANTICS,
+                    NULL
+                );
+                ol.Offset = 0xC0000 * 4096;
+                ReadFile(diskHandle, buffer, sizeof(buffer), &bytesRead, &ol);
+                MFT_RECORD mft = Tool::MFTRecordParser(buffer, 0, &flag);
+                mftRecords = Tool::ParseRecordsWithMFTDatarun(diskHandle, mft);
+                std::cout << mftRecords.size() << endl;
+                tree = new FileSystemTree(mftRecords);
+                parentNode = tree->GetRoot();
+                std::vector<NODE*> newTraversePath;
+                newTraversePath.push_back(parentNode);
+                traversePath = newTraversePath;
+            }
+            isRunning = true;
+            loadDrive = false;
+        }
         ImGui::SetNextWindowPos(ImVec2(0, 20), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x, 250), ImGuiCond_Always); 
         ImGui::Begin("MyComPuter", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar);
         if (ImGui::BeginTabBar("MyTabBar", ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse)) {
-            // Tab 1
-            if (ImGui::BeginTabItem("Drive E:")) {
-                ImGui::Text("Extend");
-                if (ImGui::Button("ShowDataFile"))
-                {
-                    if (showFileData == false) {
-                        showFileData = true;
+            
+            if (isRunning) {
+                if (ImGui::BeginTabItem(currentDrive.c_str())) {
+                    ImGui::BeginTable("FileTable", 6, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_ContextMenuInBody);
+
+                    ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+                    ImGui::TableSetupColumn("Size", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+                    ImGui::TableSetupColumn("Date Created", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+                    ImGui::TableSetupColumn("Date Modified", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+                    ImGui::TableSetupColumn("Date Accessed", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+                    ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+
+                    ImGui::TableHeadersRow();
+                    // Add table header
+                    if (traversePath.size() > 1) {
+                        ImGui::TableNextRow();
+                        ImGui::TableSetColumnIndex(0);
+                        ImGui::Selectable("..");
+                        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
+                        {
+                            traversePath.pop_back();
+                            parentNode = (DIR_NODE*) traversePath.back();
+                        }
+
                     }
-                    else showFileData = false;
-                }
-                if (ImGui::Button("ShowInfoFile"))
-                {
-                    if (showInfoFile == false) {
-                        showInfoFile = true;
+
+                    NODE* iterNode = parentNode->FirstChild;
+                    if (traversePath.size() == 1) {
+                        NODE fileInfo = *iterNode;
+                        ImGui::TableNextRow();
+                        ImGui::TableSetColumnIndex(0);
+                        std::string fileName = converter.to_bytes(fileInfo.Name);
+                        if (ImGui::Selectable(fileName.c_str(), selectedId == fileInfo.RecordId)) {
+                            selectedId = fileInfo.RecordId;
+                            if (selectedId != previousSelectedId) {
+                                previousSelectedId = selectedId;
+                            }
+                        }
+                        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
+                        {
+                            if (fileInfo.IsDirectory) {
+                                traversePath.push_back(iterNode);
+                                parentNode = (DIR_NODE*)iterNode;
+                                selectedId = -1;
+                            }
+                        }
+                        ImGui::TableSetColumnIndex(5);
+                        ImGui::Text("0x%X", fileInfo.RecordId);
+                        iterNode = iterNode->NextSibling;
                     }
-                    else showInfoFile = false;
+
+                    // Display data in rows
+                    while (iterNode != nullptr) {
+                        NODE fileInfo = *iterNode;
+                        ImGui::TableNextRow();
+                        ImGui::TableSetColumnIndex(0);
+                        std::string fileName = converter.to_bytes(fileInfo.Name);
+                        if (ImGui::Selectable(fileName.c_str(), selectedId == fileInfo.RecordId)) {
+                            selectedId = fileInfo.RecordId;
+                            if (selectedId != previousSelectedId) {
+                                ol.Offset = tree->FindRecordById(selectedId).offset;
+                                ReadFile(diskHandle, buffer, sizeof(buffer), &bytesRead, &ol);
+                                vector<int> fd;
+                                for (int i = 0; i < sizeof(buffer); i++) {
+                                    fd.push_back((int)buffer[i]);
+                                }
+                                filedata = fd;
+                                previousSelectedId = selectedId;
+                            }
+                        }
+                        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
+                        {
+                            if (fileInfo.IsDirectory) {
+                                traversePath.push_back(iterNode);
+                                parentNode = (DIR_NODE*)iterNode;
+                                selectedId = -1;
+                            }
+                        }
+                        if (ImGui::IsItemHovered() && ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+                            if (!fileInfo.IsDirectory) {
+                                recoverRecord = tree->FindRecordById(fileInfo.RecordId);
+                                ImGui::OpenPopup("context-menu-popup");
+                            }
+                        }
+                        ImGui::TableSetColumnIndex(1);
+                        ImGui::Text("%llukb", fileInfo.Fnd.AllocatedSize/1000);
+                        ImGui::TableSetColumnIndex(2);
+                        std::string fileCreationDate = converter.to_bytes(Tool::GetDateTimeFromULONGLONG(fileInfo.Fnd.FileCreationTime));
+                        ImGui::Text("%s", fileCreationDate.c_str());
+                        ImGui::TableSetColumnIndex(3);
+                        std::string fileAlteredTime = converter.to_bytes(Tool::GetDateTimeFromULONGLONG(fileInfo.Fnd.FileAlteredTime));
+                        ImGui::Text("%s", fileAlteredTime.c_str());
+                        ImGui::TableSetColumnIndex(4);
+                        std::string fileReadTime = converter.to_bytes(Tool::GetDateTimeFromULONGLONG(fileInfo.Fnd.FileReadTime));
+                        ImGui::Text("%s", fileReadTime.c_str());
+                        ImGui::TableSetColumnIndex(5);
+                        ImGui::Text("%d", fileInfo.RecordId);
+                        iterNode = iterNode->NextSibling;
+                       // ImGui::TextUnformatted(selected_fish == -1 ? "<None>" : names[selected_fish]);
+                    }
+                    if (ImGui::BeginPopup("context-menu-popup"))
+                    {
+                        if (ImGui::Selectable("Go to datarun")) {
+                            vector<FRAGMENT> datarun = recoverRecord.GetDataRun();
+                            if (datarun.size() > 0) {
+                                selectedId = recoverRecord.GetRecordId();
+                                ol.Offset = datarun.at(0).FragmentOffset * 4096;
+                                ReadFile(diskHandle, buffer, sizeof(buffer), &bytesRead, &ol);
+                                vector<int> fd;
+                                for (int i = 0; i < sizeof(buffer); i++) {
+                                    fd.push_back((int)buffer[i]);
+                                }
+                                filedata = fd;
+                                previousSelectedId = selectedId;
+                            }
+                        }
+                        if (ImGui::Selectable("Recover to ..")) {
+                            nfdchar_t* outPath = NULL;
+                            nfdresult_t r = NFD_SaveDialog(NULL,NULL, &outPath);
+                            if (outPath != nullptr && *outPath != '\0')
+                                Tool::RecoverDataToFilePath(diskHandle, recoverRecord, outPath);
+                        }
+                        ImGui::EndPopup();
+                    }
+                    ImGui::EndTable();
+                    ImGui::EndTabItem();
                 }
-                ImGui::EndTabItem();
-            }
-            // Tab 2
-            if (ImGui::BeginTabItem("Hard disk 0")) {
-                ImGui::Text("temp");
-                ImGui::EndTabItem();
             }
 
             // Kết thúc tab bar
             ImGui::EndTabBar();
+            if (selectedId != -1)
+                showFileData = true;
+            else
+                showFileData = false;
+            HomePage::ShowFileData(showFileData, filedata, 270, ol.Offset);
+            ImGui::End();
         }
-        HomePage::ShowFileData(showFileData, filedata, 270);
-        ImGui::SameLine();
-        static MemoryEditor mem_edit;
-        mem_edit.DrawWindow("Memory Editor", buffer, 4096,0);
-        ImGui::End();
         //---------------------------------
 
 
